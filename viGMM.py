@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.mixture import BayesianGaussianMixture
-from scipy.special import digamma
+from scipy.special import digamma, logsumexp
 from utils import plot_confidence_ellipse
 
 #%% Load and standardize data
@@ -64,7 +64,7 @@ def e_step():  # _e_step [_base.py]
         logLambdaTilde[k] = np.sum(digamma(0.5 * (v[k] + 1 - np.arange(D)))) + D*np.log(2) + np.log(np.linalg.det(W[k]))  # 10.65
     logPiTilde = digamma(alpha) - digamma(np.sum(alpha))  # 10.66, _estimate_log_weights
     logRho = logPiTilde + 0.5*logLambdaTilde - 0.5*E  # 10.46
-    logR = logRho - np.c_[np.sum(logRho, axis=1)]  # 10.49, log_resp
+    logR = logRho - np.c_[logsumexp(logRho, axis=1)]  # 10.49, log_resp
     r = np.exp(logR)
     return r
 
