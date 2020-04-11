@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.mixture import BayesianGaussianMixture
+from sklearn.cluster import KMeans
 from scipy.special import digamma, logsumexp
 from utils import plot_confidence_ellipse
 
@@ -25,8 +26,7 @@ beta = beta0 * np.ones(K)  # mean_precision_
 
 
 # covariance_type = 'full'
-W0 = 1 * np.eye(D)
-invW0 = np.linalg.inv(W0)  # covariance_prior_
+invW0 = 1 * np.eye(D)  # covariance_prior_
 # W = np.array([W0 for _ in range(K)])
 # invW = np.linalg.inv(W)  
 invW = np.array([invW0 for _ in range(K)])  # covariances_
@@ -34,39 +34,56 @@ invW = np.array([invW0 for _ in range(K)])  # covariances_
 v0 = D  # degrees_of_freedom_prior_
 v = v0 * np.ones(K)  # degrees_of_freedom_
 
+#%% Initialization
+# _initialize_parameters (random)
+# r = np.random.rand(N, K)
+# r /= r.sum(axis=1)[:, np.newaxis]
+
+# _initialize_parameters (kmeans)
+r = np.zeros((N, K))
+label = KMeans(n_clusters=K, n_init=1).fit(X).labels_
+r[np.arange(N), label] = 1
+
+
+m_step(X, np.log(r))
+
+
+plt.figure()
+plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
+ax = plt.gca()
+for k in range(K):
+    plot_confidence_ellipse(m[k], invW[k], 0.9, ax=ax, ec='red')
+plt.show()
 
 #%% Display
-for _ in range(100):
-    r = mixGaussBayesInfer()
-    Nk, x_bar, S = compute_Ess(r)
-    Mstep(Nk, x_bar, S)
+for _ in range(300):
+    log_resp = e_step(X)
+    m_step(X, log_resp)
 
-    if _%10 == 0:
+    if _%50 == 0:
+        plt.figure()
         plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
         ax = plt.gca()
         for k in range(K):
-            plot_confidence_ellipse(m[k], invW[k]*(v[k]-D-1), 0.9, ax=ax, ec='red')
+            plot_confidence_ellipse(m[k], invW[k], 0.9, ax=ax, ec='red')
+        plt.show()
 
-#%% Initialization
 
 
 #%% E-step
-def e_step():  # _e_step [_base.py]
+def e_step(X):  # _e_step [_base.py]
     """Compute responsabilities"""
     global alpha, beta, m, invW, v
     E = np.zeros((N, K))
     W = np.linalg.inv(invW)
     for k in range(K):
         Xc = X - m[k]
-        E[:,k] = D / beta[k] + v[k] * np.sum(Xc @ W[k] * Xc, axis=1)  # 10.64
-    logLambdaTilde = np.zeros(K)
-    for k in range(K):
-        logLambdaTilde[k] = np.sum(digamma(0.5 * (v[k] + 1 - np.arange(D)))) + D*np.log(2) + np.log(np.linalg.det(W[k]))  # 10.65
+        E[:,k] = D / beta[k] + v[k] * np.sum(Xc @ W[k] * Xc, axis=1)  # 10.64  [TO CHECK]
+    logLambdaTilde = np.sum(digamma(0.5 * (v - np.c_[np.arange(0, D)])), axis=0) + D * np.log(2) + np.log(np.linalg.det(W))   # 10.65
     logPiTilde = digamma(alpha) - digamma(np.sum(alpha))  # 10.66, _estimate_log_weights
-    logRho = logPiTilde + 0.5*logLambdaTilde - 0.5*E  # 10.46
+    logRho = logPiTilde + 0.5*logLambdaTilde - 0.5 * (E + D * np.log(2 * np.pi)) # 10.46
     logR = logRho - np.c_[logsumexp(logRho, axis=1)]  # 10.49, log_resp
-    r = np.exp(logR)
-    return r
+    return logR
 
 
 def compute_Ess(X, r): # _estimate_gaussian_parameters
@@ -80,9 +97,9 @@ def compute_Ess(X, r): # _estimate_gaussian_parameters
         S[k].flat[::D+1] += 1e-6  # regularization added to the diag. Assure that the covariance matrices are all positive
     return Nk, x_bar, S
 
-def m_step(Nk, xbar, S):  # _m_step
-    global alpha, beta, m, invW, W, v
-    Nk, xbar, S = compute_Ess(X, r)
+def m_step(X, logR):  # _m_step
+    global alpha, beta, m, invW, v
+    Nk, xbar, S = compute_Ess(X, np.exp(logR))
     # _estimate_weights
     alpha = alpha0 + Nk  # 10.58, _estimate_weigths
     # _estimate_means
@@ -106,16 +123,12 @@ plt.plot(*X.T, 'o', c='teal', alpha = 0.5)
 def gmm(dim, n):
     pass
 #%%
-model = BayesianGaussianMixture(n_components=K, covariance_type='full')
+model = BayesianGaussianMixture(n_components=K, covariance_type='full', max_iter=2)
 labels = model.fit_predict(X)
-l1, l2 = set(labels)
 #%%
-plt.plot(*X[labels==l1].T, 'o')
-plt.plot(*X[labels==l2].T, 'o')
 ax = plt.gca()
-plot_confidence_ellipse(model.means_[l1], model.covariances_[l1], 0.9, ax, ec='C0')
-plot_confidence_ellipse(model.means_[l1], model.covariances_[l1], 0.99, ax, ec='C0')
-plot_confidence_ellipse(model.means_[l2], model.covariances_[l2], 0.9, ax, ec='C1')
-plot_confidence_ellipse(model.means_[l2], model.covariances_[l2], 0.99, ax, ec='C1')
+for i, l in enumerate(set(labels)):
+    plt.plot(*X[labels==l].T, 'o')
+    plot_confidence_ellipse(model.means_[l], model.covariances_[l], 0.9, ax, ec=f'C{i}')
 
 # %%
