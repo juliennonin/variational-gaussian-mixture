@@ -12,57 +12,19 @@ X = (X - X.mean(axis=0)) / X.std(axis=0)
 N, D = X.shape  # n_samples, n_features
 
 #%% Prior Params
-K = 6  # n_components
+K = 10  # n components
 
-# weight_concentration_prior_type : dirichlet_distribution
-alpha0 = 1 / K  # weight_concentration_prior_ (Dirichlet)
-alpha = alpha0 * np.ones(K)  # weight_concentration_
+alpha0 = 1/K  # weight concentration prior (Ditichlet)
+m0 = np.zeros(D)  # mean prior
+beta0 = 1  # mean precision prior
+v0 = D  # degrees of freedom prior
+invW0 = v0 * (X - m0).T.dot(X - m0) / N  # covariance prior
 
-m0 = np.zeros(D)  # mean_prior_
-m = np.zeros((K, D))  # means_
-
-beta0 = 1  # mean_precision_prior_
-beta = beta0 * np.ones(K)  # mean_precision_
-
-
-# covariance_type = 'full'
-invW0 = 1 * np.eye(D)  # covariance_prior_
-# W = np.array([W0 for _ in range(K)])
-# invW = np.linalg.inv(W)  
-invW = np.array([invW0 for _ in range(K)])  # covariances_
-
-v0 = D  # degrees_of_freedom_prior_
-v = v0 * np.ones(K)  # degrees_of_freedom_
-
-#%%
-
-K = 10
-alpha0 = 1/K
-alpha = alpha0 * np.ones(K)
-
-m0 = np.mean(X, axis=0)
-m = np.array([[-0.49813282, -0.78529033],
-       [-0.4469789 , -0.63790956],
-       [-0.47266126, -0.68203894],
-       [ 0.38457508,  0.32323383],
-       [ 0.16320506, -0.01819425],
-       [ 0.22959118,  0.10605733],
-       [ 0.06409906,  0.27213673],
-       [ 0.28301891,  0.29796192],
-       [ 0.13476758, -0.25260453],
-       [ 0.28530035, -0.00930441]])
-
-beta0 = 1
-beta = beta0 * np.ones(K)
-
-W0 = np.array([[ 1.76797857, -1.59261484],
-       [-1.59261484,  1.76797857]])
-W = np.array([W0 for _ in range(K)])
-invW = np.linalg.inv(W)
-invW0 = np.linalg.inv(W0)
-
-v0 = D
-v = v0 * np.ones(K)
+alpha = alpha0 * np.ones(K)  # weight concentration
+m = np.array([np.random.multivariate_normal(m0, invW0 / (v0 * beta0)) for _ in range(K)])  # means
+beta = beta0 * np.ones(K)  # mean precision
+invW = np.array([invW0 for _ in range(K)])  # covariances
+v = v0 * np.ones(K) # degrees of freedom
     
 #%% Initialization
 # _initialize_parameters (random)
@@ -82,15 +44,15 @@ plt.figure()
 plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
 ax = plt.gca()
 for k in range(K):
-    plot_confidence_ellipse(m[k], invW[k], 0.9, ax=ax, ec='red')
+    plot_confidence_ellipse(m[k], invW[k] / v[k], 0.9, ax=ax, ec='red')
 plt.show()
 
 #%% Display
-for _ in range(300):
+for _ in range(100):
     log_resp = e_step(X)
     m_step(X, log_resp)
 
-    if _%50 == 0:
+    if _%10 == 0:
         plt.figure()
         plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
         ax = plt.gca()
@@ -152,20 +114,11 @@ def m_step(X, logR):  # _m_step
     # W = np.linalg.inv(W)  #  
 
 def map_estimate():
-    w = np.zeros(K)
-    covs = np.zeros_like(W)
-    for k in range(K):
-        w[k] = alpha[k]/np.ones(K).dot(alpha)
-        covs[k, :] = invW[k, :] / v[k]
-    return w, covs
+    global alpha, invW
+    weigths = alpha / np.sum(alpha)
+    covs = invW / v[:, np.newaxis, np.newaxis]
+    return weigths, covs
 
-# %%
-plt.plot(*X.T, 'o', c='teal', alpha = 0.5)
-# %%
-
-
-def gmm(dim, n):
-    pass
 #%%
 model = BayesianGaussianMixture(n_components=K, covariance_type='full', max_iter=2)
 labels = model.fit_predict(X)
