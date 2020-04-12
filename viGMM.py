@@ -34,18 +34,48 @@ invW = np.array([invW0 for _ in range(K)])  # covariances_
 v0 = D  # degrees_of_freedom_prior_
 v = v0 * np.ones(K)  # degrees_of_freedom_
 
+#%%
+
+K = 10
+alpha0 = 1/K
+alpha = alpha0 * np.ones(K)
+
+m0 = np.mean(X, axis=0)
+m = np.array([[-0.49813282, -0.78529033],
+       [-0.4469789 , -0.63790956],
+       [-0.47266126, -0.68203894],
+       [ 0.38457508,  0.32323383],
+       [ 0.16320506, -0.01819425],
+       [ 0.22959118,  0.10605733],
+       [ 0.06409906,  0.27213673],
+       [ 0.28301891,  0.29796192],
+       [ 0.13476758, -0.25260453],
+       [ 0.28530035, -0.00930441]])
+
+beta0 = 1
+beta = beta0 * np.ones(K)
+
+W0 = np.array([[ 1.76797857, -1.59261484],
+       [-1.59261484,  1.76797857]])
+W = np.array([W0 for _ in range(K)])
+invW = np.linalg.inv(W)
+invW0 = np.linalg.inv(W0)
+
+v0 = D
+v = v0 * np.ones(K)
+    
 #%% Initialization
 # _initialize_parameters (random)
 # r = np.random.rand(N, K)
 # r /= r.sum(axis=1)[:, np.newaxis]
 
 # _initialize_parameters (kmeans)
-r = np.zeros((N, K))
-label = KMeans(n_clusters=K, n_init=1).fit(X).labels_
-r[np.arange(N), label] = 1
+# r = np.zeros((N, K))
+# label = KMeans(n_clusters=K, n_init=1).fit(X).labels_
+# r[np.arange(N), label] = 1
 
 
-m_step(X, np.log(r))
+# m_step(X, np.log(r))
 
 
 plt.figure()
@@ -64,8 +94,10 @@ for _ in range(300):
         plt.figure()
         plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
         ax = plt.gca()
+        w, covs = map_estimate()
         for k in range(K):
-            plot_confidence_ellipse(m[k], invW[k], 0.9, ax=ax, ec='red')
+            if not(np.allclose(m[k], [0, 0], atol=1e-3) and w[k] < 1e-3):
+             plot_confidence_ellipse(m[k], invW[k] / v[k], 0.9, ax=ax, ec='teal')
         plt.show()
 
 
@@ -97,6 +129,10 @@ def compute_Ess(X, r): # _estimate_gaussian_parameters
         S[k].flat[::D+1] += 1e-6  # regularization added to the diag. Assure that the covariance matrices are all positive
     return Nk, x_bar, S
 
+
+def compute_lower_bound(logR):
+    pass
+
 def m_step(X, logR):  # _m_step
     global alpha, beta, m, invW, v
     Nk, xbar, S = compute_Ess(X, np.exp(logR))
@@ -112,8 +148,16 @@ def m_step(X, logR):  # _m_step
         xc = xbar[k] - m0
         invW[k] = invW0 + Nk[k]*S[k] + (beta0 * Nk[k]) * np.outer(xc, xc) / beta[k]  # 10.62, _estimate_precisions [553]
     #[TODO ????] normalize covariance
-    invW /= (v[:, np.newaxis, np.newaxis])
+    # invW /= (v[:, np.newaxis, np.newaxis])
     # W = np.linalg.inv(W)  #  
+
+def map_estimate():
+    w = np.zeros(K)
+    covs = np.zeros_like(W)
+    for k in range(K):
+        w[k] = alpha[k]/np.ones(K).dot(alpha)
+        covs[k, :] = invW[k, :] / v[k]
+    return w, covs
 
 # %%
 plt.plot(*X.T, 'o', c='teal', alpha = 0.5)
