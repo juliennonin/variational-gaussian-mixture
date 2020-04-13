@@ -12,32 +12,38 @@ X = (X - X.mean(axis=0)) / X.std(axis=0)
 N, D = X.shape  # n_samples, n_features
 
 #%% Prior Params
-K = 6  # n_components
+K = 10
+alpha0 = 1/K
+alpha = alpha0 * np.ones(K)
 
-# weight_concentration_prior_type : dirichlet_distribution
-# alpha0 = 1 / K  # weight_concentration_prior_ (Dirichlet)
-# alpha = alpha0 * np.ones(K)  # weight_concentration_
+m0 = np.mean(X, axis=0)
+m = np.array([[-0.49813282, -0.78529033],
+       [-0.4469789 , -0.63790956],
+       [-0.47266126, -0.68203894],
+       [ 0.38457508,  0.32323383],
+       [ 0.16320506, -0.01819425],
+       [ 0.22959118,  0.10605733],
+       [ 0.06409906,  0.27213673],
+       [ 0.28301891,  0.29796192],
+       [ 0.13476758, -0.25260453],
+       [ 0.28530035, -0.00930441]])
 
-# m0 = np.zeros(D)  # mean_prior_
-m = np.random.randn(K, D) # means_
+# beta0 = 1
+# beta = beta0 * np.ones(K)
 
-beta0 = 1  # mean_precision_prior_
-# beta = beta0 * np.ones(K)  # mean_precision_
-S0 = beta0 * np.eye(D)
-S = np.array([S0 for _ in range(K)])
+W0 = np.array([[ 1.76797857, -1.59261484],
+       [-1.59261484,  1.76797857]])
+W = np.array([W0 for _ in range(K)])
+invW = np.linalg.inv(W)
+invW0 = np.linalg.inv(W0)
 
-# covariance_type = 'full'
-W0 = 1 * np.eye(D)  # covariance_prior_
-# W = np.array([W0 for _ in range(K)])
-# invW = np.linalg.inv(W)  
-# W = np.array([W0 for _ in range(K)])  # covariances_
-W = np.zeros((K, D, D))
-for k in range(K):
-    A = np.abs(np.random.randn(D))
-    W[k] = np.diag(0.3 * A / np.sum(A))
+S = np.copy(W)
+S0 = np.copy(W0)
+invS = np.linalg.inv(S)
+invS0 = np.linalg.inv(S0)
 
-v0 = D  # degrees_of_freedom_prior_
-v = v0 * np.ones(K)  # degrees_of_freedom_
+v0 = D
+v = v0 * np.ones(K)
 
 pi = np.ones(K) / K
 #%% Initialization
@@ -52,16 +58,16 @@ pi = np.ones(K) / K
 
 
 # m_step(X, np.log(r))
-r = np.random.rand(N, K)
-r /= r.sum(axis=1)[:, np.newaxis]
-e_step2(X, r)
+# r = np.random.rand(N, K)
+# r /= r.sum(axis=1)[:, np.newaxis]
+# e_step2(X, r)
 
 #%%
 plt.figure()
 plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
 ax = plt.gca()
 for k in range(K):
-    plot_confidence_ellipse(m[k]/30, W[k] / v[k], 0.9, ax=ax, ec='red')
+    plot_confidence_ellipse(m[k], invW[k] / v[k], 0.9, ax=ax, ec='red')
 plt.show()
 
 #%% Display
@@ -76,7 +82,7 @@ for _ in range(1):
         ax = plt.gca()
         for k in range(K):
             if pi[k] > 0.000001:
-                plot_confidence_ellipse(m[k], W[k] / v[k], 0.9, ax=ax, ec='teal')
+                plot_confidence_ellipse(m[k], invW[k] / v[k], 0.9, ax=ax, ec='teal')
         plt.show()
 
 
@@ -84,13 +90,13 @@ for _ in range(1):
 #%% E-step
 
 def e_step(X):
-    global pi, m, v, S, W
+    global pi, m, v, invS, invW
     # computation of the responsabilities
+    W = np.linalg.inv(invW)
+    S = np.linalg.inv(invS)
     logPi = np.log(pi)
     logTTilde = np.sum(digamma(0.5 * (v - np.c_[np.arange(0, D)])), axis=0) + D * np.log(2) - np.log(np.linalg.det(W))
     E = np.zeros((N, K))
-    invW = np.linalg.inv(W)
-    invS = np.linalg.inv(S)
     for k in range(K):
         diff = X - m[k]
         E[:,k] = v[k] * np.sum(diff @ invW[k] * diff, axis=1) + np.trace(v[k] * invW[k] @ invS[k])
@@ -101,9 +107,9 @@ def e_step(X):
     return r
 
 def e_step2(X, r):
-    global pi, m, v, S, W
-    invW = np.linalg.inv(W)
-    invS = np.linalg.inv(S)
+    global pi, m, v, invS, invW
+    W = np.linalg.inv(invW)
+    S = np.linalg.inv(invS)
     Ecov  = v[:, np.newaxis, np.newaxis] * invW
     Emu = 1 * m
     Nk = r.sum(axis=0) + 10*np.finfo(r.dtype).eps
