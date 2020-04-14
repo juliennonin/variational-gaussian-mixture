@@ -41,5 +41,5 @@ Springer-Verlag, 2006.
 ## To do
 
 - [x] Create this README
-- [ ]
-- [ ]
+- [ ] Finally make the model without prior on mixing coefficients (viGMM_CB) work
+- [ ] Generate a set of synthetic data
