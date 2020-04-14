@@ -69,6 +69,8 @@ class VariationalGaussianMixture():
                 self._display_2D(X ,i)
 
         self._get_final_parameters()
+        if self.display and D == 2:
+            self._display_2D(X, i)
         # Final e-step to guarantee that the labels are consistent
         log_resp = self._e_step(X)
         return log_resp.argmax(axis=1)
@@ -128,4 +130,5 @@ class VariationalGaussianMixture():
         for k in range(self.K):
             if not(np.allclose(self.m[k], [0, 0], atol=1e-3) and self.weigths[k] < 1e-3):
              plot_confidence_ellipse(self.m[k], self.covs[k], 0.9, ax=ax, ec='teal')
+        plt.title(f'iteration {i}')
         plt.show()
