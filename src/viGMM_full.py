@@ -66,7 +66,7 @@ class VariationalGaussianMixture():
 
             if self.display and D == 2 and i % self.plot_period == 0:
                 self._get_final_parameters()
-                self._display_2D(X ,i)
+                self._display_2D(X, i)
 
         self._get_final_parameters()
         if self.display and D == 2:
