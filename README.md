@@ -2,7 +2,7 @@
 
 Two Variational Bayesian Gaussian mixture models proposed in [1] and [2] are compared. Their graphical models are respectively shown below.
 ![graphical models](data/img/graphical_models.png)
-- The implementation for the first model [1], that treats the mixing coefficients as parameters, is still in progress. A first debugging draft is available in the Jupyter Notebook `viGMM_CB.ipynb`.
+- The implementation for the first model [1], is implemented through the class `VariationalGaussianMixture` in `src.viGMM_CB`.
 - The full Bayesian GMM model [2] is implemented in the class `VariationalGaussianMixture` in `src.viGMM_full`.
 ## Installation
 First clone the project
@@ -13,9 +13,10 @@ cd variational-gaussian-mixture
 `variational-gaussian-mixture` runs on Python 3.7. and only requires `matplotlib ≥ 3.2.1` and `numpy ≥ 1.18.1`.
 
 ## Usage
-Import the class `VariationalGaussianMixture`
+Import the classes `VariationalGaussianMixture` and/or`VariationalGaussianMixtureCB`
 ```
 from src.viGMM_full import VariationalGaussianMixture
+from src.viGMM_CB import VariationalGaussianMixtureCB
 ```
 Load the "Old Faitful" data set and standardize the data.
 ```
@@ -43,5 +44,6 @@ Springer-Verlag, 2006.
 - [x] Create this README
 - [x] Finally make the model without prior on mixing coefficients (viGMM_CB) work
 - [ ] Generate a set of synthetic data
-- [x] Fix random initialization of responsabilities
-- [x] Compute the ELBO
+- [ ] Fix random initialization of responsabilities
+- [ ] Compute the ELBO
+- [ ] Initialize m0 in viGMM_CB
