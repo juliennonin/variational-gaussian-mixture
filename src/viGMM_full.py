@@ -49,7 +49,7 @@ class VariationalGaussianMixture():
         
         else:
             raise ValueError("Correct values for 'init_param' are ['random', 'kmeans']")
-
+        # np.savetxt('data/resp.txt', resp)
         self._m_step(X, np.log(resp))
     
     def fit(self, X):
