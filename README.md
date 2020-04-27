@@ -41,5 +41,5 @@ Springer-Verlag, 2006.
 ## To do
 
 - [x] Create this README
-- [ ]
-- [ ]
+- [x] Fix random initialization of responsabilities
+- [x] Compute the ELBO
