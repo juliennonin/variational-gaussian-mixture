@@ -3,6 +3,7 @@
 %autoreload 2
 
 import numpy as np
+import matplotlib.pyplot as plt
 from src.viGMM_full import VariationalGaussianMixture
 from src.viGMM_CB import VariationalGaussianMixtureCB
 
@@ -17,8 +18,13 @@ X = np.concatenate([np.random.multivariate_normal(m_true[k], covs_true[k], 100) 
 
 
 #%%
-model = VariationalGaussianMixture(K=10, display=True, max_iter=200, plot_period=5, init_param="kmeans")
-model = VariationalGaussianMixtureCB(K=10, display=True, max_iter=200, plot_period=5, init_param="kmeans")
+# model = VariationalGaussianMixture(K=10, display=True, max_iter=200, plot_period=5, init_param="kmeans")
+model = VariationalGaussianMixtureCB(K=10, display=True, max_iter=200, plot_period=20, init_param="kmeans")
 model.fit(X)
 
 # %%
+plt.plot(model.elbo, 'k')
+plt.margins(x=0)
+plt.xlabel('iteration')
+plt.ylabel('Variational lower bound')
+plt.show()

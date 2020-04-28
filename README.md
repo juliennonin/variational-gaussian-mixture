@@ -45,5 +45,8 @@ Springer-Verlag, 2006.
 - [x] Finally make the model without prior on mixing coefficients (viGMM_CB) work
 - [ ] Generate a set of synthetic data
 - [ ] Fix random initialization of responsabilities
-- [ ] Compute the ELBO
-- [ ] Initialize m0 in viGMM_CB
+- [x] Compute the ELBO for GMM_CB
+- [ ] Compute the ELBO for GMM_full
+- [ ] Better visualization of GM
+- [ ] Stopping criterion using the ELBO
+- [ ] Make prediction
