@@ -4,6 +4,8 @@ from sklearn.mixture import BayesianGaussianMixture
 from sklearn.cluster import KMeans
 from scipy.special import digamma, gammaln, logsumexp
 from utils import plot_confidence_ellipse
+from scipy.stats import multivariate_normal
+from matplotlib.colors import LogNorm
 
 
 def log_wishart(invW, nu):
@@ -18,7 +20,7 @@ class VariationalGaussianMixtureCB():
 
     References
     ----------
-        [2] Corduneanu, Adrian and Bishop, Christopher M. (2001), "Variational 
+        [1] Corduneanu, Adrian and Bishop, Christopher M. (2001), "Variational 
         Bayesian Model Selection for Mixture Distributions", in Proc. AI and 
         Statistics Conf., pp. 27-34."""
 
@@ -54,7 +56,7 @@ class VariationalGaussianMixtureCB():
             resp[np.arange(n_samples), label] = 1
         
         elif self.init_param == "_debug":
-            resp = np.loadtxt('data/resp.txt')
+            resp = np.loadtxt('data/_resp.txt')
         
         else:
             raise ValueError("Correct values for 'init_param' are ['random', 'kmeans']")
@@ -78,7 +80,6 @@ class VariationalGaussianMixtureCB():
 
         self.elbo = np.empty(self.max_iter)
         for i in range(self.max_iter):
-            print(i)
             expect = self._compute_expectations(D)
             log_resp, log_rho_tilde = self._compute_resp(X, expect)
             resp = np.exp(log_resp)
@@ -88,11 +89,15 @@ class VariationalGaussianMixtureCB():
 
             if self.display and D == 2 and i % self.plot_period == 0:
                 self._get_final_parameters()
-                self._display_2D(X, i)
+                self._display_2D(X)
+                plt.title(f'iteration {i}')
+                plt.show()
         
         self._get_final_parameters()
         if self.display and D == 2:
-            self._display_2D(X, i)
+            self._display_2D(X)
+            plt.title(f'iteration {i}')
+            plt.show()
 
     def _compute_expectations(self, D):
         exp_T = self.nu[:, np.newaxis, np.newaxis] * np.linalg.inv(self.invW)  # (25)
@@ -168,14 +173,45 @@ class VariationalGaussianMixtureCB():
     def _get_final_parameters(self):
         self.covs = self.invW / self.nu[:, np.newaxis, np.newaxis]
     
-    def _display_2D(self, X, i=None, eps=1e-5):
+    def _display_2D(self, X, n_levels=21, show_components=True):
         assert X.shape[1] == 2, "Only 2D display is available"
-        plt.figure()
-        plt.plot(*X.T, 'o', c='dimgrey', alpha = 0.5)
-        ax = plt.gca()
-        for k in range(self.K):
-            if self.weights[k] >= eps:
-                plot_confidence_ellipse(self.m[k], self.covs[k], 0.9, ax=ax, ec='teal')
-        # ax.set_aspect('equal')
-        if i: plt.title(f'iteration {i}')
-        plt.show()
+        ## Grid
+        xmin, xmax, ymin, ymax = X[:,0].min(), X[:,0].max(), X[:,1].min(), X[:,1].max()
+        mx, my =.1 * (xmax - xmin), .1 * (ymax - ymin)  # margins
+        xmin, xmax, ymin, ymax = xmin - mx, xmax + mx, ymin - my, ymax + my
+        # xmin, xmax = min(X[:,0].min(), X[:,1].min()), max(X[:,0].max(), X[:,1].max())
+        # ymin, ymax = xmin, xmax
+        x = np.linspace(xmin, xmax, 200)
+        y = np.linspace(ymin, ymax, 200)
+        x, y = np.meshgrid(x, y)
+        pos = np.empty(x.shape + (2,))
+        pos[:,:,0] = x; pos[:,:,1] = y
+        rvs = [multivariate_normal(self.m[k], self.covs[k]) for k in range(self.K)]
+        Z = sum([self.weights[k] * rvs[k].pdf(pos) for k in range(self.K)])
+
+        plt.figure(figsize=(6,6))
+        
+        ## Heatmap
+        scale = np.amax(np.abs(Z))
+        plt.imshow(Z, interpolation='bilinear', origin='lower', vmin=-scale,vmax=scale,
+            cmap="RdBu", extent=(xmin, xmax, ymin, ymax))
+        
+        ## Log-contours
+        levels_exp = np.linspace(np.floor(np.log10(Z.min())-1), np.ceil(np.log10(Z.max())+1), n_levels)
+        levels = np.power(10, levels_exp)
+        plt.contour(x, y, Z, linewidths=1., colors="#93b8db",
+            levels=levels, norm=LogNorm())  # A1B5C8
+        
+        ## Scatter plot of the dataset
+        plt.plot(*X.T, '.', c='k', alpha=0.6)
+        plt.xlim(xmin, xmax)
+        plt.ylim(ymin, ymax)
+
+        ## Display each component of the GM
+        if show_components:
+            ax = plt.gca()
+            for k in range(self.K):
+                if self.weights[k] >= 1e-5:
+                    plot_confidence_ellipse(self.m[k], self.covs[k], 0.9, ax=ax,
+                        ec='brown', linestyle=(0, (5, 2)),
+                        alpha=max(0.3, self.weights[k] / max(self.weights)))

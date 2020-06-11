@@ -11,7 +11,7 @@ class VariationalGaussianMixture():
 
     References
     ----------
-       [1] Bishop, Christopher M. (2006). "Pattern recognition and machine
+       [2] Bishop, Christopher M. (2006). "Pattern recognition and machine
        learning". Vol. 4 No. 4. New York: Springer."""
 
     def __init__(self, K, init_param="random", seed=2208, max_iter=200,
@@ -49,7 +49,7 @@ class VariationalGaussianMixture():
         
         else:
             raise ValueError("Correct values for 'init_param' are ['random', 'kmeans']")
-        # np.savetxt('data/resp.txt', resp)
+        # np.savetxt('data/_resp.txt', resp)
         self._m_step(X, np.log(resp))
     
     def fit(self, X):
@@ -122,7 +122,7 @@ class VariationalGaussianMixture():
         return log_resp
 
 
-    def _display_2D(self, X, i):
+    def _display_2D(self, X, i=None, **kwargs):
         assert X.shape[1] == 2, "Only 2D display is available"
         plt.figure()
         plt.plot(*X.T, 'o', c='dimgrey', alpha=0.5)
@@ -130,5 +130,5 @@ class VariationalGaussianMixture():
         for k in range(self.K):
             if not(np.allclose(self.m[k], [0, 0], atol=1e-3) and self.weigths[k] < 1e-3):
              plot_confidence_ellipse(self.m[k], self.covs[k], 0.9, ax=ax, ec='teal')
-        plt.title(f'iteration {i}')
+        if i: plt.title(f'iteration {i}')
         plt.show()

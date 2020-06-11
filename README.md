@@ -25,7 +25,7 @@ X = (X - X.mean(axis=0)) / X.std(axis=0)
 ```
 Apply the full Bayesian GMM
 ```
-model = VariationalGaussianMixture(K=10, display=True, max_iter=200, plot_period=200)
+model = VariationalGaussianMixture(K=10, display=True, max_iter=201, plot_period=200, init_param="kmeans")
 model.fit(X)
 ```
 This should produce the following output
@@ -43,10 +43,12 @@ Springer-Verlag, 2006.
 
 - [x] Create this README
 - [x] Finally make the model without prior on mixing coefficients (viGMM_CB) work
+- [ ] Create a parent class
 - [ ] Generate a set of synthetic data
 - [ ] Fix random initialization of responsabilities
 - [x] Compute the ELBO for GMM_CB
 - [ ] Compute the ELBO for GMM_full
-- [ ] Better visualization of GM
+- [x] Better visualization of GM
 - [ ] Stopping criterion using the ELBO
 - [ ] Make prediction
+- [ ] Add prior on mean for GMM_CB to allow non-standardization

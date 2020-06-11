@@ -1,5 +1,8 @@
 __pycache__/
 */__pycache__/
-test.py
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
+
+.vscode
+
+test.py
