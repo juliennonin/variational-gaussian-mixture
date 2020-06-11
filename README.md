@@ -13,19 +13,18 @@ cd variational-gaussian-mixture
 `variational-gaussian-mixture` runs on Python 3.7. and only requires `matplotlib ≥ 3.2.1` and `numpy ≥ 1.18.1`.
 
 ## Usage
-Import the classes `VariationalGaussianMixture` and/or`VariationalGaussianMixtureCB`
+Import the module
 ```
-from src.viGMM_full import VariationalGaussianMixture
-from src.viGMM_CB import VariationalGaussianMixtureCB
+import src as mixture
 ```
-Load the "Old Faitful" data set and standardize the data.
+Load the "Old Faithful" data set and standardize the data.
 ```
 X = np.loadtxt('data/faithful.txt')
 X = (X - X.mean(axis=0)) / X.std(axis=0)
 ```
-Apply a Bayesian GMM
+Apply a Bayesian GMM (`mixture.VariationalGaussianMixture`**`CB`** or `mixture.VariationalGaussianMixture`)
 ```
-model = VariationalGaussianMixtureCB(K=10, display=True, max_iter=201, plot_period=200, init_param="kmeans")
+model = mixture.VariationalGaussianMixtureCB(K=10, display=True, max_iter=201, plot_period=200, init_param="kmeans")
 model.fit(X)
 ```
 This should produce the following output
@@ -43,7 +42,8 @@ Springer-Verlag, 2006.
 
 - [x] Create this README
 - [x] Finally make the model without prior on mixing coefficients (viGMM_CB) work
-- [ ] Create a parent class
+- [x] Create a parent class (BaseGaussianMixture)
+- [ ] move fit_predict to the parent class
 - [ ] Generate a set of synthetic data
 - [ ] Fix random initialization of responsabilities
 - [x] Compute the ELBO for GMM_CB

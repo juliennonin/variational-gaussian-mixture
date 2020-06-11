@@ -1,12 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.mixture import BayesianGaussianMixture
-from sklearn.cluster import KMeans
+from .base import BaseGaussianMixture
 from scipy.special import digamma, logsumexp
 from utils import plot_confidence_ellipse
 
 
-class VariationalGaussianMixture():
+class VariationalGaussianMixture(BaseGaussianMixture):
     """Variational Bayesian estimation of a Gaussian mixture
 
     References
@@ -17,44 +16,24 @@ class VariationalGaussianMixture():
     def __init__(self, K, init_param="random", seed=2208, max_iter=200,
                  alpha0=None, m0=None, beta0=None, invW0=None, nu0=None,
                  display=False, plot_period=None):
-        self.K = K
-        self.init_param = init_param
-        self.rd = np.random.RandomState(seed)
-        self.max_iter = max_iter
-        self.display = display
-        self.plot_period = plot_period or max_iter // 10
-
+        super().__init__(
+            K, init_param=init_param, seed=seed, max_iter=max_iter,
+            display=display, plot_period=plot_period)
         self.alpha0 = alpha0
         self.beta0 = beta0
         self.m0 = m0
         self.nu0 = nu0
         self.invW0 = invW0
 
-    def _initialize_parameters(self, X):
+    def _initialize(self, X, resp):
         n_samples, D = X.shape
         self.alpha0 = self.alpha0 or (1. / self.K)
         self.beta0 = self.beta0 or 1.
         self.m0 = self.m0 or X.sum(axis=0)
         self.nu0 = self.nu0 or D
         self.invW0 = self.invW0 or np.atleast_2d(np.cov(X.T))
-
-        if self.init_param == "random":
-            resp = self.rd.rand(n_samples, self.K)
-            resp /= resp.sum(axis=1)[:, np.newaxis]
-        
-        elif self.init_param == "kmeans":
-            resp = np.zeros((n_samples, self.K))
-            label = KMeans(n_clusters=self.K, n_init=1).fit(X).labels_
-            resp[np.arange(n_samples), label] = 1
-        
-        else:
-            raise ValueError("Correct values for 'init_param' are ['random', 'kmeans']")
-        # np.savetxt('data/_resp.txt', resp)
+                
         self._m_step(X, np.log(resp))
-    
-    def fit(self, X):
-        self.fit_predict(X)
-        return self
 
     def fit_predict(self, X):
         """Estimate model parameters"""
@@ -66,17 +45,21 @@ class VariationalGaussianMixture():
 
             if self.display and D == 2 and i % self.plot_period == 0:
                 self._get_final_parameters()
-                self._display_2D(X, i)
+                self.display_2D(X)
+                plt.title(f'iteration {i}')
+                plt.show()
 
         self._get_final_parameters()
         if self.display and D == 2:
-            self._display_2D(X, i)
+            self.display_2D(X)
+            plt.title(f'iteration {i}')
+            plt.show()
         # Final e-step to guarantee that the labels are consistent
         log_resp = self._e_step(X)
         return log_resp.argmax(axis=1)
 
     def _get_final_parameters(self):
-        self.weigths = self.alpha / np.sum(self.alpha)
+        self.weights = self.alpha / np.sum(self.alpha)
         self.covs = self.invW / self.nu[:, np.newaxis, np.newaxis]
 
     def _compute_statististics(self, X, resp):
@@ -122,13 +105,13 @@ class VariationalGaussianMixture():
         return log_resp
 
 
-    def _display_2D(self, X, i=None, **kwargs):
-        assert X.shape[1] == 2, "Only 2D display is available"
-        plt.figure()
-        plt.plot(*X.T, 'o', c='dimgrey', alpha=0.5)
-        ax = plt.gca()
-        for k in range(self.K):
-            if not(np.allclose(self.m[k], [0, 0], atol=1e-3) and self.weigths[k] < 1e-3):
-             plot_confidence_ellipse(self.m[k], self.covs[k], 0.9, ax=ax, ec='teal')
-        if i: plt.title(f'iteration {i}')
-        plt.show()
+    # def _display_2D(self, X, i=None, **kwargs):
+    #     assert X.shape[1] == 2, "Only 2D display is available"
+    #     plt.figure()
+    #     plt.plot(*X.T, 'o', c='dimgrey', alpha=0.5)
+    #     ax = plt.gca()
+    #     for k in range(self.K):
+    #         if not(np.allclose(self.m[k], [0, 0], atol=1e-3) and self.weights[k] < 1e-3):
+    #          plot_confidence_ellipse(self.m[k], self.covs[k], 0.9, ax=ax, ec='teal')
+    #     if i: plt.title(f'iteration {i}')
+    #     plt.show()

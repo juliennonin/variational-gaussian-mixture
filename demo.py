@@ -4,12 +4,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-from src.viGMM_full import VariationalGaussianMixture
-from src.viGMM_CB import VariationalGaussianMixtureCB
-from scipy.stats import multivariate_normal
-from utils import plot_confidence_ellipse
-
+import src as mixture
 
 
 #%% Synthetic 1
@@ -36,7 +31,7 @@ X = np.loadtxt('data/faithful.txt')
 X = (X - X.mean(axis=0)) / X.std(axis=0)
 
 # model = VariationalGaussianMixture(K=10, display=True, max_iter=200, plot_period=5, init_param="kmeans")
-model = VariationalGaussianMixtureCB(K=10, display=True, max_iter=201, plot_period=20, init_param="kmeans")
+model = mixture.VariationalGaussianMixtureCB(K=10, display=True, max_iter=201, plot_period=20, init_param="kmeans")
 model.fit(X)
 
 #%% Display ELBO

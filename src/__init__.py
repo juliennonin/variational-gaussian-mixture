@@ -1,0 +1,2 @@
+from .viGMM_CB import VariationalGaussianMixtureCB
+from .viGMM_full import VariationalGaussianMixture
