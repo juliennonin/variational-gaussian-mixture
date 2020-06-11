@@ -23,9 +23,9 @@ Load the "Old Faitful" data set and standardize the data.
 X = np.loadtxt('data/faithful.txt')
 X = (X - X.mean(axis=0)) / X.std(axis=0)
 ```
-Apply the full Bayesian GMM
+Apply a Bayesian GMM
 ```
-model = VariationalGaussianMixture(K=10, display=True, max_iter=201, plot_period=200, init_param="kmeans")
+model = VariationalGaussianMixtureCB(K=10, display=True, max_iter=201, plot_period=200, init_param="kmeans")
 model.fit(X)
 ```
 This should produce the following output
