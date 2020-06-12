@@ -41,6 +41,15 @@ plt.xlabel('iteration')
 plt.ylabel('Variational lower bound')
 plt.show()
 
+plt.plot(model.elbo[:-1] - model.elbo[1:], 'k')
+plt.margins(x=0)
+plt.xlabel('iteration')
+plt.ylabel('Variation of the Variational lower bound')
+plt.axhline(y=0)
+plt.show()
+
+if not all((model.elbo[:-1] - model.elbo[1:]) <= 1e-7):
+    raise ValueError("Implementation Error: ELBO should be increasing")
 #%% Display final GM
 model._display_2D(X, n_levels=21, show_components=True)
 plt.show()

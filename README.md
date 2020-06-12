@@ -22,7 +22,7 @@ Load the "Old Faithful" data set and standardize the data.
 X = np.loadtxt('data/faithful.txt')
 X = (X - X.mean(axis=0)) / X.std(axis=0)
 ```
-Apply a Bayesian GMM (`mixture.VariationalGaussianMixture`**`CB`** or `mixture.VariationalGaussianMixture`)
+Apply a Bayesian GMM (`mixture.VariationalGaussianMixtureCB` or `mixture.VariationalGaussianMixture`)
 ```
 model = mixture.VariationalGaussianMixtureCB(K=10, display=True, max_iter=201, plot_period=200, init_param="kmeans")
 model.fit(X)
@@ -47,7 +47,7 @@ Springer-Verlag, 2006.
 - [ ] Generate a set of synthetic data
 - [ ] Fix random initialization of responsabilities
 - [x] Compute the ELBO for GMM_CB
-- [ ] Compute the ELBO for GMM_full
+- [x] Compute the ELBO for GMM_full
 - [x] Better visualization of GM
 - [ ] Stopping criterion using the ELBO
 - [ ] Make prediction

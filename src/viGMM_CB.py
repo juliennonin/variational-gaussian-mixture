@@ -1,19 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from .base import BaseGaussianMixture
+from .base import BaseGaussianMixture, log_wishart_B
 from sklearn.cluster import KMeans
 from scipy.special import digamma, gammaln, logsumexp
 from utils import plot_confidence_ellipse
 from scipy.stats import multivariate_normal
 from matplotlib.colors import LogNorm
-
-
-def log_wishart(invW, nu):
-    D = len(invW)
-    return + 0.5 * nu * np.log(np.linalg.det(invW)) \
-           - 0.5 * nu * D * np.log(2) \
-           - 0.25 * D * (D-1) * np.log(np.pi) \
-           - gammaln(0.5 * (nu - np.arange(D))).sum()
 
 class VariationalGaussianMixtureCB(BaseGaussianMixture):
     """Variarional Bayesian estimation of a Gaussian mixture
@@ -135,14 +127,14 @@ class VariationalGaussianMixtureCB(BaseGaussianMixture):
         ln_p_z = np.sum(resp * np.log(self.weights))  # (29)
         ln_p_mu = self.K * D * np.log(0.5 * self.beta0 / np.pi) \
             - 0.5 * self.beta0 * np.sum(expect["muT_mu"])  # (30)
-        ln_p_T = self.K * log_wishart(self.invW0, self.nu0) \
+        ln_p_T = self.K * log_wishart_B(self.invW0, self.nu0) \
             + 0.5 * (self.nu0 - D - 1) * expect["log_det_T"].sum() \
             - 0.5 * np.trace(self.invW0 * expect["T"].sum())  # (31)
         
         ln_q_z = np.sum(resp * np.log(resp))  # (32)
         ln_q_mu = - 0.5 * self.K * D * (1 + np.log(2 * np.pi)) \
             + 0.5 * np.sum(np.log(np.linalg.det(self.S)))  # (33)
-        ln_q_T  = np.sum([log_wishart(self.invW[k], self.nu[k]) for k in range(self.K)]) \
+        ln_q_T  = np.sum([log_wishart_B(self.invW[k], self.nu[k]) for k in range(self.K)]) \
             + np.sum(0.5 * (self.nu - D - 1) * expect['log_det_T']) \
             - np.sum(0.5 * np.trace(self.invW @ expect['T'], axis1=1, axis2=2))  # (34)
         return ln_p_x + ln_p_z + ln_p_mu + ln_p_T + ln_q_z + ln_q_mu + ln_q_T

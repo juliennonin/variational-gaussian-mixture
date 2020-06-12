@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from .base import BaseGaussianMixture
-from scipy.special import digamma, logsumexp
+from .base import BaseGaussianMixture, log_wishart_B, log_dirichlet_C
+from scipy.special import digamma, gammaln, logsumexp
 from utils import plot_confidence_ellipse
 
 
@@ -39,9 +39,12 @@ class VariationalGaussianMixture(BaseGaussianMixture):
         """Estimate model parameters"""
         _, D = X.shape
         self._initialize_parameters(X)
+
+        self.elbo = np.empty(self.max_iter)
         for i in range(self.max_iter):
-            log_resp = self._e_step(X)
-            self._m_step(X, log_resp)
+            ln_resp, ln_lambda_tilde, ln_pi_tilde = self._e_step(X)
+            self._m_step(X, ln_resp)
+            self.elbo[i] = self._compute_lower_bound(X, ln_resp, ln_lambda_tilde, ln_pi_tilde)
 
             if self.display and D == 2 and i % self.plot_period == 0:
                 self._get_final_parameters()
@@ -55,8 +58,8 @@ class VariationalGaussianMixture(BaseGaussianMixture):
             plt.title(f'iteration {i}')
             plt.show()
         # Final e-step to guarantee that the labels are consistent
-        log_resp = self._e_step(X)
-        return log_resp.argmax(axis=1)
+        ln_resp, *_ = self._e_step(X)
+        return ln_resp.argmax(axis=1)
 
     def _get_final_parameters(self):
         self.weights = self.alpha / np.sum(self.alpha)
@@ -73,9 +76,26 @@ class VariationalGaussianMixture(BaseGaussianMixture):
             S[k].flat[::D+1] += 1e-6  # regularization added to the diag. Assure that the covariance matrices are all positive
         return N, x_bar, S
 
-    def _m_step(self, X, log_resp):
+    
+    def _e_step(self, X):
+        n_samples, D = X.shape
+        W = np.linalg.inv(self.invW)
+        
+        E = np.zeros((n_samples, self.K))
+        for k in range(self.K):
+            Xc = X - self.m[k]
+            E[:,k] = D / self.beta[k] + self.nu[k] * np.sum(Xc @ W[k] * Xc, axis=1)  # (10.64)
+        ln_lambda_tilde = np.sum(digamma(0.5 * (self.nu - np.arange(0, D)[:,np.newaxis])), axis=0) \
+             + D * np.log(2) + np.log(np.linalg.det(W))   # (10.65)
+        ln_pi_tilde = digamma(self.alpha) - digamma(np.sum(self.alpha))  # (10.66)
+        
+        ln_rho = ln_pi_tilde + 0.5*ln_lambda_tilde - 0.5 * (E + D * np.log(2 * np.pi)) # (10.46)
+        ln_resp = ln_rho - np.c_[logsumexp(ln_rho, axis=1)]  # (10.49)
+        return ln_resp, ln_lambda_tilde, ln_pi_tilde
+
+    def _m_step(self, X, ln_resp):
         _, D = X.shape
-        N, x_bar, S = self._compute_statististics(X, np.exp(log_resp))
+        N, x_bar, S = self._compute_statististics(X, np.exp(ln_resp))
 
         self.alpha = self.alpha0 + N  # (10.58), weight concentration
         self.beta = self.beta0 + N  # (10.60), mean precision
@@ -88,21 +108,36 @@ class VariationalGaussianMixture(BaseGaussianMixture):
             self.invW[k] = self.invW0 + N[k] * S[k] + (self.beta0 * N[k]) * (
                 np.outer(xc, xc) / self.beta[k])  # (10.62)
 
-    def _e_step(self, X):
-        n_samples, D = X.shape
+    def _compute_lower_bound(self, X, ln_resp, ln_lambda_tilde, ln_pi_tilde):
+        _, D = X.shape
+        resp = np.exp(ln_resp)
+        N, x_bar, S = self._compute_statististics(X, resp)
         W = np.linalg.inv(self.invW)
-        
-        E = np.zeros((n_samples, self.K))
-        for k in range(self.K):
-            Xc = X - self.m[k]
-            E[:,k] = D / self.beta[k] + self.nu[k] * np.sum(Xc @ W[k] * Xc, axis=1)  # (10.64)
-        log_lambda_tilde = np.sum(digamma(0.5 * (self.nu - np.arange(0, D)[:,np.newaxis])), axis=0) \
-             + D * np.log(2) + np.log(np.linalg.det(W))   # (10.65)
-        log_pi_tilde = digamma(self.alpha) - digamma(np.sum(self.alpha))  # (10.66)
-        
-        log_rho = log_pi_tilde + 0.5*log_lambda_tilde - 0.5 * (E + D * np.log(2 * np.pi)) # (10.46)
-        log_resp = log_rho - np.c_[logsumexp(log_rho, axis=1)]  # (10.49)
-        return log_resp
+
+        ln_p_x = 0.5 * np.sum(N * ln_lambda_tilde) \
+            - 0.5 * D * np.sum(N / self.beta) \
+            - 0.5 * np.sum(N * self.nu * np.trace(S @ W, axis1=1, axis2=2)) \
+            - 0.5 * np.sum([N[k] * self.nu[k] * (x_bar[k] - self.m[k]) @ W[k] @ (x_bar[k] - self.m[k]) for k in range(self.K)]) \
+            - 0.5 * N.sum() * D * np.log(2 * np.pi)#  (10.71)
+        ln_p_z = np.sum(resp * ln_pi_tilde) # (10.72)
+        ln_p_pi = (self.alpha0 - 1) * ln_pi_tilde.sum() + log_dirichlet_C([self.alpha0] * self.K) # (10.73)
+        ln_p_mu_lambda = 0.5 * np.sum(ln_lambda_tilde) \
+            + 0.5 * self.K * D * np.log(0.5 * self.beta0 / np.pi) \
+            - 0.5 * D * (self.beta0 / self.beta).sum() \
+            - 0.5 * self.beta0 * np.sum([self.nu[k] * (self.m[k] - self.m0) @ W[k] @ (self.m[k] - self.m0) for k in range(self.K)]) \
+            + self.K * log_wishart_B(self.invW0, self.nu0) \
+            + 0.5 * (self.nu0 - D - 1) * ln_lambda_tilde.sum() \
+            - 0.5 * np.sum(self.nu * np.trace(self.invW0 @ W, axis1=1, axis2=2)) # (10.74)
+
+        ln_q_z = np.sum(resp * ln_resp) # (10.75)
+        ln_q_pi = np.sum((self.alpha - 1) * ln_pi_tilde) + log_dirichlet_C(self.alpha) # (10.76)
+        ln_q_mu_lambda = 0.5 * np.sum(ln_lambda_tilde) - 0.5 * self.K * D \
+            + np.sum(0.5 * D * np.log(0.5 * self.beta / np.pi)) \
+            + np.sum([log_wishart_B(self.invW[k], self.nu[k]) for k in range(self.K)]) \
+            + np.sum(0.5 * (self.nu - D - 1) * ln_lambda_tilde) \
+            - np.sum(0.5 * self.nu * D)  # (10.77)
+
+        return ln_p_x + ln_p_z + ln_p_pi + ln_p_mu_lambda - ln_q_z - ln_q_pi - ln_q_mu_lambda
 
 
     # def _display_2D(self, X, i=None, **kwargs):

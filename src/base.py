@@ -3,9 +3,19 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from utils import plot_confidence_ellipse
 from scipy.stats import multivariate_normal
+from scipy.special import digamma, gammaln, logsumexp
 from matplotlib.colors import LogNorm
 from abc import abstractmethod
 
+def log_wishart_B(invW, nu):
+    D = len(invW)
+    return + 0.5 * nu * np.log(np.linalg.det(invW)) \
+           - 0.5 * nu * D * np.log(2) \
+           - 0.25 * D * (D-1) * np.log(np.pi) \
+           - gammaln(0.5 * (nu - np.arange(D))).sum()
+
+def log_dirichlet_C(alpha):
+    return gammaln(np.sum(alpha)) - gammaln(alpha).sum()
 
 class BaseGaussianMixture():
     """Abstract class for mixture models."""
